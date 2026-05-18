@@ -14,13 +14,14 @@ afterAll(() => {
 
 describe('templates', () => {
   describe('getBuiltins', () => {
-    it('returns 3 built-in templates', () => {
+    it('returns 4 built-in templates', () => {
       const tpls = getBuiltins();
-      expect(tpls).toHaveLength(3);
+      expect(tpls).toHaveLength(4);
       const names = tpls.map((t) => t.name);
       expect(names).toContain('task_template');
       expect(names).toContain('report_stub');
       expect(names).toContain('post_review_report_stub');
+      expect(names).toContain('rules');
     });
   });
 
@@ -70,9 +71,10 @@ describe('templates', () => {
   describe('materializeTemplates', () => {
     it('writes template files to disk', () => {
       const created = materializeTemplates(TMP, undefined, false);
-      expect(created).toHaveLength(3);
+      expect(created).toHaveLength(4);
       expect(fs.existsSync(path.join(TMP, 'task_template.md'))).toBe(true);
       expect(fs.existsSync(path.join(TMP, 'report_stub.md'))).toBe(true);
+      expect(fs.existsSync(path.join(TMP, 'rules.md'))).toBe(true);
     });
 
     it('skips existing files without force', () => {
@@ -84,7 +86,7 @@ describe('templates', () => {
     it('overwrites with force', () => {
       materializeTemplates(TMP, undefined, false);
       const second = materializeTemplates(TMP, undefined, true);
-      expect(second).toHaveLength(3);
+      expect(second).toHaveLength(4);
     });
 
     it('materializes specific templates by name', () => {

@@ -44,7 +44,6 @@ describe('tasks', () => {
         id: 'task_001_test',
         title: 'Test task',
         assignee: 'alice',
-        status: 'todo',
         template: 'todo',
         tags: ['report', 'urgent'],
         createdAt: '2024-01-01T00:00:00.000Z',
@@ -83,7 +82,7 @@ describe('tasks', () => {
     });
 
     it('ignores non-matching ids', () => {
-      expect(getNextNumber(['deepseek_001_foo', 'other'])).toBe(1);
+      expect(getNextNumber(['other_001_foo', 'no_match'])).toBe(1);
     });
   });
 
@@ -160,10 +159,10 @@ describe('tasks', () => {
     it('finds max id across draft, todo, and done', () => {
       ensureDirs(TEST_CWD);
       const todo = path.join(tasksDir(TEST_CWD), 'todo');
-      fs.writeFileSync(path.join(todo, 'deepseek_005_test.md'), '');
-      fs.writeFileSync(path.join(todo, 'deepseek_003_other.md'), '');
+      fs.writeFileSync(path.join(todo, 'task_005_test.md'), '');
+      fs.writeFileSync(path.join(todo, 'task_003_other.md'), '');
       const done = path.join(tasksDir(TEST_CWD), 'done');
-      fs.writeFileSync(path.join(done, 'deepseek_007_old.md'), '');
+      fs.writeFileSync(path.join(done, 'task_007_old.md'), '');
       const draft = path.join(tasksDir(TEST_CWD), 'draft');
       fs.writeFileSync(path.join(draft, 'task_002.md'), '');
       expect(getMaxNumericId(TEST_CWD)).toBe(7);
@@ -200,20 +199,20 @@ describe('tasks', () => {
     it('accounts for existing non-draft tasks', () => {
       ensureDirs(TEST_CWD);
       const todo = path.join(tasksDir(TEST_CWD), 'todo');
-      fs.writeFileSync(path.join(todo, 'deepseek_003_existing.md'), '');
+      fs.writeFileSync(path.join(todo, 'task_003_existing.md'), '');
       const r = createDraftFile('After existing', '## Body', '# Report', {}, TEST_CWD);
       expect(r.num).toBe(4);
     });
   });
 
   describe('publishDraft', () => {
-    it('publishes draft to todo with deepseek naming', () => {
+    it('publishes draft to todo with task naming', () => {
       ensureDirs(TEST_CWD);
       createDraftFile('My Feature', '## Body\nContent', '# Report\nFor task {{id}}', {}, TEST_CWD);
 
       const result = publishDraft(1, TEST_CWD, TEST_CWD);
       expect(result).toBeDefined();
-      expect(result!.finalId).toBe('deepseek_001_my_feature');
+      expect(result!.finalId).toBe('task_001_my_feature');
       expect(fs.existsSync(result!.taskPath)).toBe(true);
       expect(fs.existsSync(result!.reportPath)).toBe(true);
       expect(result!.taskPath).toContain('/todo/');

@@ -1,6 +1,6 @@
 import { resolveTask, lifecycleTransition } from '../tasks';
 
-const ACTIVE_DIRS = ['ready', 'todo', 'progress', 'review', 'rework'];
+const BLOCK_FROM = ['progress'];
 
 export function blockCommand(id: string | undefined, reason?: string): void {
   if (!id) {
@@ -15,8 +15,8 @@ export function blockCommand(id: string | undefined, reason?: string): void {
     process.exit(1);
   }
 
-  if (!ACTIVE_DIRS.includes(task.dir)) {
-    console.error(`Error: Task "${id}" is not in an active state (current: ${task.dir}/)`);
+  if (!BLOCK_FROM.includes(task.dir)) {
+    console.error(`Error: Task "${id}" must be in progress/ to block (current: ${task.dir}/)`);
     process.exit(1);
   }
 

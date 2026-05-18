@@ -2,6 +2,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { tasksDir, ensureDirs } from '../tasks';
 import { materializeTemplates, getBuiltins } from '../templates';
+import { writeConfig, configPath } from '../config';
 
 export function initCommand(force: boolean): void {
   const base = tasksDir();
@@ -15,6 +16,19 @@ export function initCommand(force: boolean): void {
   }
 
   ensureDirs();
+
+  // Create aitask.yml if not exists or if force
+  const cfgPath = configPath();
+  if (!fs.existsSync(cfgPath) || force) {
+    writeConfig({
+      manager: {
+        env: 'MANAGER_ID',
+        id: '',
+        name: '',
+      },
+    });
+    console.log(`  Created aitask.yml`);
+  }
 
   const created = materializeTemplates(path.resolve(base, '..'), undefined, force);
 

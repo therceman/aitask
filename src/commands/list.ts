@@ -1,27 +1,37 @@
-import { TaskFile, TaskDir } from '../types';
+import { TaskFile, TaskDir, TASK_DIRS } from '../types';
 import { scanDir, findTask, findAllTasks, findReportPair } from '../tasks';
 
+const ACTIVE_DIRS: TaskDir[] = ['backlog', 'ready', 'todo', 'progress', 'blocked', 'review', 'rework'];
+
 export function listCommand(flags: Record<string, string | boolean>): void {
-  const statusFilter = flags.status as string | undefined;
   const assigneeFilter = flags.assignee as string | undefined;
+  const dir = flags.dir as TaskDir | undefined;
 
-  const dir = (flags.dir as TaskDir) || 'todo';
-  const tasks = scanDir(dir);
-
-  let filtered = tasks;
-  if (statusFilter) {
-    filtered = filtered.filter((t) => t.meta.status === statusFilter);
+  let tasks: TaskFile[];
+  if (dir) {
+    if (!TASK_DIRS.includes(dir)) {
+      console.error(`Error: Invalid directory "${dir}". Valid: ${TASK_DIRS.join(', ')}`);
+      process.exit(1);
+    }
+    tasks = scanDir(dir);
+  } else {
+    // Show all active state folders by default
+    tasks = [];
+    for (const d of ACTIVE_DIRS) {
+      tasks.push(...scanDir(d));
+    }
   }
+
   if (assigneeFilter) {
-    filtered = filtered.filter((t) => t.meta.assignee === assigneeFilter);
+    tasks = tasks.filter((t) => t.meta.assignee === assigneeFilter);
   }
 
   if (flags.json) {
-    console.log(JSON.stringify(filtered.map((t) => ({
+    console.log(JSON.stringify(tasks.map((t) => ({
       id: t.meta.id,
       title: t.meta.title,
       assignee: t.meta.assignee,
-      status: t.meta.status,
+      dir: t.dir,
       template: t.meta.template,
       tags: t.meta.tags,
       path: t.path,
@@ -29,31 +39,23 @@ export function listCommand(flags: Record<string, string | boolean>): void {
     return;
   }
 
-  if (filtered.length === 0) {
-    if (dir === 'todo') {
-      console.log('No active tasks in tasks/todo/.');
-    } else {
-      console.log(`No tasks in tasks/${dir}/.`);
-    }
+  if (tasks.length === 0) {
+    console.log('No active tasks.');
     return;
   }
 
-  const maxIdLen = Math.max(...filtered.map((t) => t.meta.id.length), 8);
+  const maxIdLen = Math.max(...tasks.map((t) => t.meta.id.length), 8);
 
-  if (dir === 'todo') {
-    console.log(`Active queue (tasks/todo/):`);
-  } else {
-    console.log(`Tasks in tasks/${dir}/:`);
-  }
+  console.log('Active tasks:');
   console.log('');
-  console.log(`${'ID'.padEnd(maxIdLen)}  STATUS        ASSIGNEE       TITLE`);
+  console.log(`${'ID'.padEnd(maxIdLen)}  DIR           ASSIGNEE       TITLE`);
   console.log('-'.repeat(maxIdLen + 60));
 
-  for (const t of filtered) {
+  for (const t of tasks) {
     const id = t.meta.id.padEnd(maxIdLen);
-    const status = t.meta.status.padEnd(12);
+    const dirCol = t.dir.padEnd(12);
     const assignee = (t.meta.assignee || '-').padEnd(13);
     const tags = t.meta.tags.length > 0 ? ` [${t.meta.tags.join(',')}]` : '';
-    console.log(`${id}  ${status}  ${assignee}  ${t.meta.title}${tags}`);
+    console.log(`${id}  ${dirCol}  ${assignee}  ${t.meta.title}${tags}`);
   }
 }

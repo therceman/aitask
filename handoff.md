@@ -6,7 +6,7 @@ Date: 2026-05-10
 - CLI exists and works with draft-first workflow.
 - Core commands implemented:
   - `aitask create <slug>` -> creates draft task in `tasks/draft/` with auto-increment ID
-  - `aitask publish <draft_path>` -> moves draft to `tasks/todo/` with deepseek naming pattern
+  - `aitask publish <draft_path>` -> moves draft to `tasks/todo/` with task naming pattern
   - `aitask templates` -> copies report/task stubs into place
 - Global install path is working (`npm install -g .` was used in prior verification).
 
@@ -19,7 +19,7 @@ Date: 2026-05-10
 - Added built-in templates and template command support.
 - Added tests and smoke coverage for template flows.
 
-3. `deepseek_003_implement_draft_first_workflow_with_auto_increment_ids_and_p`
+3. `task_003_implement_draft_first_workflow_with_auto_increment_ids_and_p`
 - Implemented draft-first flow end-to-end.
 - Added auto-increment task IDs.
 - Added `publish` behavior from draft -> todo with naming normalization.

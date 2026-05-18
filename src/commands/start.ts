@@ -13,8 +13,8 @@ export function startCommand(id: string | undefined): void {
     process.exit(1);
   }
 
-  if (task.dir !== 'ready' && task.dir !== 'todo') {
-    console.error(`Error: Task "${id}" must be in ready/ or todo/ to start (current: ${task.dir}/)`);
+  if (task.dir !== 'backlog' && task.dir !== 'ready' && task.dir !== 'todo') {
+    console.error(`Error: Task "${id}" must be in backlog/, ready/, or todo/ to start (current: ${task.dir}/)`);
     process.exit(1);
   }
 

@@ -41,19 +41,6 @@ describe('parseArgs', () => {
     expect(result.flags).toEqual({ assign: 'bob' });
   });
 
-  it('parses publish with id', () => {
-    const result = parseArgs(['node', 'aitask', 'publish', '1']);
-    expect(result.command).toBe('publish');
-    expect(result.args).toEqual(['1']);
-  });
-
-  it('parses publish with --dir', () => {
-    const result = parseArgs(['node', 'aitask', 'publish', '3', '--dir', '/some/repo']);
-    expect(result.command).toBe('publish');
-    expect(result.args).toEqual(['3']);
-    expect(result.flags).toEqual({ dir: '/some/repo' });
-  });
-
   it('parses list', () => {
     const result = parseArgs(['node', 'aitask', 'list']);
     expect(result.command).toBe('list');
@@ -69,5 +56,19 @@ describe('parseArgs', () => {
     const exitSpy = jest.spyOn(process, 'exit').mockImplementation((() => { throw new Error('exit'); }) as any);
     expect(() => parseArgs(['node', 'aitask', 'unknown'])).toThrow('exit');
     exitSpy.mockRestore();
+  });
+
+  it('parses -- as double-dash separator putting rest in positional args', () => {
+    const result = parseArgs(['node', 'aitask', 'manager', 'contact', 'set-command', '--', 'airelay', 'prompt', '{{id}}', '{{msg}}']);
+    expect(result.command).toBe('manager');
+    expect(result.args).toEqual(['contact', 'set-command', 'airelay', 'prompt', '{{id}}', '{{msg}}']);
+    expect(result.flags).toEqual({});
+  });
+
+  it('parses double-dash after flags', () => {
+    const result = parseArgs(['node', 'aitask', 'manager', 'call', 'T001', '--transition', 'done', '--', 'extra', 'args']);
+    expect(result.command).toBe('manager');
+    expect(result.flags).toEqual({ transition: 'done' });
+    expect(result.args).toEqual(['call', 'T001', 'extra', 'args']);
   });
 });

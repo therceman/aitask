@@ -62,8 +62,8 @@ pushd "$SMOKE_DIR/project5" > /dev/null
 $AITASK init
 $AITASK create "My feature"
 $AITASK publish 1
-[ -f "tasks/todo/deepseek_001_my_feature.md" ] && echo "  PASS: published task in todo with deepseek naming"
-[ -f "tasks/todo/deepseek_001_my_feature_report_draft.md" ] && echo "  PASS: published report in todo"
+	[ -f "tasks/todo/task_001_my_feature.md" ] && echo "  PASS: published task in todo with task naming"
+	[ -f "tasks/todo/task_001_my_feature_report_draft.md" ] && echo "  PASS: published report in todo"
 [ ! -f "tasks/draft/task_001.md" ] && echo "  PASS: draft removed after publish"
 CLEANUP_DIRS+=("$SMOKE_DIR/project5")
 popd > /dev/null
@@ -107,9 +107,10 @@ $AITASK init
 $AITASK create "Finish feature" --assign bob
 $AITASK publish 1
 $AITASK list | grep -q "Finish feature" && echo "  PASS: list shows published task"
-$AITASK done "deepseek_001_finish_feature"
-[ -f "tasks/done/deepseek_001_finish_feature.md" ] && echo "  PASS: task moved to done"
-[ -f "tasks/done/deepseek_001_finish_feature_report.md" ] && echo "  PASS: report moved to done"
+	$AITASK start "task_001_finish_feature" && echo "  PASS: task started to progress"
+	$AITASK done "task_001_finish_feature"
+	[ -f "tasks/done/task_001_finish_feature.md" ] && echo "  PASS: task moved to done"
+	[ -f "tasks/done/task_001_finish_feature_report.md" ] && echo "  PASS: report moved to done"
 CLEANUP_DIRS+=("$SMOKE_DIR/project8")
 popd > /dev/null
 
@@ -131,7 +132,7 @@ pushd "$SMOKE_DIR/project10" > /dev/null
 $AITASK init
 $AITASK create "Valid task" --assign alice
 $AITASK publish 1
-$AITASK validate "deepseek_001_valid_task" && echo "  PASS: validate passes"
+	$AITASK validate "task_001_valid_task" && echo "  PASS: validate passes"
 CLEANUP_DIRS+=("$SMOKE_DIR/project10")
 popd > /dev/null
 
@@ -142,8 +143,8 @@ pushd "$SMOKE_DIR/project11" > /dev/null
 $AITASK init
 $AITASK create "Bad idea"
 $AITASK publish 1
-$AITASK reject "deepseek_001_bad_idea"
-[ -f "tasks/rework/deepseek_001_bad_idea.md" ] && echo "  PASS: task moved to rework"
+	$AITASK reject "task_001_bad_idea"
+	[ -f "tasks/rework/task_001_bad_idea.md" ] && echo "  PASS: task moved to rework"
 CLEANUP_DIRS+=("$SMOKE_DIR/project11")
 popd > /dev/null
 
@@ -154,24 +155,12 @@ pushd "$SMOKE_DIR/project12" > /dev/null
 $AITASK init
 $AITASK create "To assign"
 $AITASK publish 1
-$AITASK assign "deepseek_001_to_assign" "alice"
-grep -q "assignee: alice" tasks/todo/deepseek_001_to_assign.md && echo "  PASS: assign updated"
+	$AITASK assign "task_001_to_assign" "alice"
+	grep -q "assignee: alice" tasks/todo/task_001_to_assign.md && echo "  PASS: assign updated"
 CLEANUP_DIRS+=("$SMOKE_DIR/project12")
 popd > /dev/null
 
-# ---- Test 13: status ----
-echo "=== Test: status ==="
-mkdir -p "$SMOKE_DIR/project13"
-pushd "$SMOKE_DIR/project13" > /dev/null
-$AITASK init
-$AITASK create "WIP task"
-$AITASK publish 1
-$AITASK status "deepseek_001_wip_task" in_progress
-grep -q "status: in_progress" tasks/todo/deepseek_001_wip_task.md && echo "  PASS: status updated"
-CLEANUP_DIRS+=("$SMOKE_DIR/project13")
-popd > /dev/null
-
-# ---- Test 14: templates list ----
+# ---- Test 13: templates list ----
 echo "=== Test: templates list ==="
 $AITASK templates list | grep -q "task_template" && echo "  PASS: templates list"
 
@@ -224,7 +213,7 @@ $AITASK init
 $AITASK create "Cross repo task"
 # Publish to other repo using --dir
 $AITASK publish 1 --dir "$SMOKE_DIR/project20_other"
-[ -f "$SMOKE_DIR/project20_other/tasks/todo/deepseek_001_cross_repo_task.md" ] && echo "  PASS: published to --dir target"
+	[ -f "$SMOKE_DIR/project20_other/tasks/todo/task_001_cross_repo_task.md" ] && echo "  PASS: published to --dir target"
 CLEANUP_DIRS+=("$SMOKE_DIR/project20" "$SMOKE_DIR/project20_other")
 popd > /dev/null
 

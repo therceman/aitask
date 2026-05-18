@@ -3,12 +3,8 @@ import * as path from 'path';
 import * as fs from 'fs';
 import { initCommand } from './commands/init';
 import { createCommand } from './commands/create';
-import { publishCommand } from './commands/publish';
 import { listCommand } from './commands/list';
-import { assignCommand } from './commands/assign';
-import { statusCommand } from './commands/status';
 import { doneCommand } from './commands/done';
-import { rejectCommand } from './commands/reject';
 import { validateCommand } from './commands/validate';
 import { templatesCommand } from './commands/templates';
 import { startCommand } from './commands/start';
@@ -18,6 +14,12 @@ import { blockCommand } from './commands/block';
 import { unblockCommand } from './commands/unblock';
 import { queueCommand } from './commands/queue';
 import { auditCommand } from './commands/audit';
+import { supersedeCommand } from './commands/supersede';
+import { readyCommand } from './commands/ready';
+import { showCommand } from './commands/show';
+import { pathCommand } from './commands/path';
+import { rulesCommand } from './commands/rules';
+import { managerCommand } from './commands/manager';
 
 interface ParseResult {
   command: string;
@@ -25,9 +27,16 @@ interface ParseResult {
   flags: Record<string, string | boolean>;
 }
 
+const LEGACY_COMMANDS: Record<string, string> = {
+  publish: "publish is removed. Use: aitask ready <id> to move backlog->ready",
+  assign: "assign is removed. Assignee tracking is not part of ADR-001.",
+  reject: "reject is removed. Use: aitask rework <id> --reason '<reason>'",
+};
+
 const KNOWN_COMMANDS = [
-  'init', 'create', 'publish', 'list', 'assign', 'status', 'done', 'reject', 'validate', 'templates', 'help',
-  'start', 'review', 'rework', 'block', 'unblock', 'queue', 'audit',
+  'init', 'create', 'list', 'done', 'validate', 'templates', 'help',
+  'start', 'review', 'rework', 'block', 'unblock', 'supersede', 'queue', 'audit',
+  'ready', 'show', 'path', 'rules', 'manager',
 ];
 
 function parseArgs(argv: string[]): ParseResult {
@@ -48,15 +57,26 @@ function parseArgs(argv: string[]): ParseResult {
     process.exit(0);
   }
 
+  if (command in LEGACY_COMMANDS) {
+    console.error(`Error: ${LEGACY_COMMANDS[command]}`);
+    process.exit(1);
+  }
+
   if (!KNOWN_COMMANDS.includes(command)) {
     console.error(`Error: Unknown command "${command}". Run "aitask help" for usage.`);
     process.exit(1);
   }
 
   let i = 1;
+  let doubleDash = false;
   while (i < args.length) {
     const arg = args[i];
-    if (arg.startsWith('--')) {
+    if (arg === '--') {
+      doubleDash = true;
+      i++;
+      continue;
+    }
+    if (!doubleDash && arg.startsWith('--')) {
       const key = arg.slice(2);
       if (i + 1 < args.length && !args[i + 1].startsWith('-')) {
         flags[key] = args[i + 1];
@@ -65,7 +85,7 @@ function parseArgs(argv: string[]): ParseResult {
         flags[key] = true;
         i++;
       }
-    } else if (arg.startsWith('-') && arg.length > 1) {
+    } else if (!doubleDash && arg.startsWith('-') && arg.length > 1) {
       const key = arg.slice(1);
       if (i + 1 < args.length && !args[i + 1].startsWith('-')) {
         flags[key] = args[i + 1];
@@ -95,39 +115,40 @@ Usage:
   aitask <command> [options]
 
 Lifecycle Commands:
-  start <id>              Start a task: ready -> progress
+  ready <id>              Manager-gated: backlog -> ready
+  start <id>              Start a task: backlog|ready -> progress
   review <id>             Send to review: progress -> review
   rework <id>             Send back to rework: review -> rework
   done <id>               Complete: progress|review|rework -> done
-  block <id> [reason]     Block a task: any active -> blocked
-  unblock <id>            Unblock: blocked -> ready
-  queue                   Show all state folders with task counts
+  block <id> [reason]     Block a task: progress -> blocked
+  unblock <id>            Unblock: blocked -> progress
+  supersede <id>          Manager-gated: any -> superseded
+  queue                   Show tabular task queue with state, timestamp, title
   audit                   Scan all state folders for consistency issues
 
 Task Management Commands:
-  init                    Scaffold tasks/ directory and template stubs
-  create <title>          Create a draft task in tasks/draft/
-  publish <id>            Publish draft to tasks/todo/ (deepseek naming)
-  list                    Show active task queue (tasks/todo/)
-  assign <id> <user>      Assign a task
-  status <id> <status>    Set status (todo|in_progress|done|rejected|rework)
-  reject <id>             Move task to tasks/rework/
-  validate <id>           Check task completeness (report, assignee, etc.)
+  init                    Scaffold tasks/ directory, aitask.yml, and template stubs
+  create <title>          Create a draft task in tasks/draft/ or tasks/ready/
+  list                    Show active tasks across all state folders
+  validate <id>           Full structural validation per ADR-001
   templates <subcommand>  List or materialize templates
+  show <id>               Token-safe task display (--sections, --full)
+  path <id>               Print resolved absolute file path
+  rules                   Print manager contact and display guidance
+  manager <subcommand>    Configure and interact with task manager
   help                    Show this help message
 
 Create options:
   --assign <user>         Assignee
   --desc <text>           Description / objective
   --tags <a,b,c>          Comma-separated tags
-
-Publish options:
-  --dir <path>            Target repo directory (auto-detect by default)
+  --adr=<N>               ADR number for task ID
+  --no-adr                Do not include ADR in task ID
+  --ready                 Create in ready/ instead of draft/
 
 List options:
-  --status <status>       Filter by status
   --assignee <user>       Filter by assignee
-  --dir <dir>             Directory to list (todo, done, rework, default: todo)
+  --dir <dir>             Directory to list (default: all active)
   --json                  JSON output
 
 Templates subcommands:
@@ -136,36 +157,35 @@ Templates subcommands:
     --dir <path>          Target directory (default: project root)
     --force               Overwrite existing files
 
+Show options:
+  --sections <names>      Comma-separated sections (default: frontmatter,goal,scope,acceptance)
+  --full                  Display entire file
+
+Manager subcommands:
+  set <id> --env <NAME> [--name "<name>"]  Configure manager
+  show                                      Show manager config
+  verify                                    Check if manager env matches
+  contact set-command -- <command>          Set contact command
+  contact show                              Show contact command
+  contact test                              Test contact command
+  call <id> --message "<msg>"               Call manager with message
+  call <id> --transition <t> --report <p>   Call manager with transition report
+
 Lifecycle Workflow:
   aitask start 5                  # start task, moves ready/ -> progress/
-  aitask review deepseek_001_foo  # send to review
-  aitask done deepseek_001_foo    # complete
+  aitask review task_001_foo  # send to review
+  aitask done task_001_foo    # complete
   aitask block 3 "waiting for UX" # block with reason
   aitask unblock 3                # unblock back to ready/
 
-Full Workflow:
-  aitask create "My feature"     # create draft in tasks/draft/
-  aitask publish 1               # publish draft to tasks/todo/
-  aitask list                    # view active queue
-  aitask done <id>               # finalize
-
-Audit:
-  aitask audit                  # scan for folder/state mismatches, missing reports, timestamp violations
-  aitask done <id>              # requires report (error if missing)
-  aitask done <id> --force      # skip report check
-
 Examples:
   aitask init
-  aitask create "Add login feature" --assign alice
-  aitask publish 1
+  aitask create "Add login feature"
   aitask list
   aitask list --dir draft
   aitask list --dir done
-  aitask assign deepseek_001_add_login_feature alice
-  aitask status deepseek_001_add_login_feature in_progress
-  aitask done deepseek_001_add_login_feature
-  aitask reject deepseek_002_bad_idea
-  aitask validate deepseek_001_add_login_feature
+  aitask done task_001_add_login_feature
+  aitask validate task_001_add_login_feature
   aitask templates list
   aitask templates materialize --force
 `);
@@ -188,28 +208,12 @@ async function runCli(): Promise<void> {
         createCommand(args[0], flags);
         break;
 
-      case 'publish':
-        publishCommand(args[0], flags);
-        break;
-
       case 'list':
         listCommand(flags);
         break;
 
-      case 'assign':
-        assignCommand(args[0], args[1]);
-        break;
-
-      case 'status':
-        statusCommand(args[0], args[1]);
-        break;
-
       case 'done':
         doneCommand(args[0], flags);
-        break;
-
-      case 'reject':
-        rejectCommand(args[0]);
         break;
 
       case 'validate':
@@ -246,6 +250,30 @@ async function runCli(): Promise<void> {
 
       case 'audit':
         auditCommand();
+        break;
+
+      case 'supersede':
+        supersedeCommand(args[0], flags);
+        break;
+
+      case 'ready':
+        readyCommand(args[0]);
+        break;
+
+      case 'show':
+        showCommand(args[0], flags);
+        break;
+
+      case 'path':
+        pathCommand(args[0]);
+        break;
+
+      case 'rules':
+        rulesCommand();
+        break;
+
+      case 'manager':
+        managerCommand(args, flags);
         break;
 
       default:

@@ -1,7 +1,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import { TASK_DIRS, TaskDir } from '../types';
-import { tasksDir, parseFrontmatter } from '../tasks';
+import { tasksDir } from '../tasks';
 
 export interface AuditIssue {
   type: 'FAIL' | 'WARN';
@@ -66,19 +66,19 @@ export function runAudit(cwd?: string): AuditIssue[] {
       if (!f.endsWith('.md') || f.endsWith('_report.md') || f.endsWith('_report_draft.md')) continue;
       const fp = path.join(d, f);
       const content = fs.readFileSync(fp, 'utf-8');
-      const { meta } = parseFrontmatter(content);
       const baseName = f.replace(/\.md$/, '');
-
-      if (dir === 'done' && meta.status && meta.status !== 'done') {
-        issues.push({ type: 'FAIL', file: fp, message: `folder/state mismatch (folder=done, status=${meta.status})` });
-      } else if (dir !== 'done' && dir !== 'draft' && meta.status === 'done') {
-        issues.push({ type: 'FAIL', file: fp, message: `folder/state mismatch (folder=${dir}, status=done)` });
-      }
 
       if (dir === 'done') {
         const reportPath = findReportFile(baseName, base);
         if (!reportPath) {
           issues.push({ type: 'FAIL', file: fp, message: 'missing report' });
+        } else {
+          const reportContent = fs.readFileSync(reportPath, 'utf-8').trim();
+          if (!reportContent) {
+            issues.push({ type: 'FAIL', file: fp, message: 'report is empty' });
+          } else if (!reportContent.includes('## Summary') && !reportContent.includes('## Task ID')) {
+            issues.push({ type: 'WARN', file: fp, message: 'report may lack required sections' });
+          }
         }
       }
 
@@ -91,6 +91,7 @@ export function runAudit(cwd?: string): AuditIssue[] {
 
       const created_at = getFmField(content, 'created_at') || getFmField(content, 'createdAt');
       const started_at = getFmField(content, 'started_at');
+      const review_at = getFmField(content, 'review_at');
       const done_at = getFmField(content, 'done_at');
 
       if (created_at && done_at && compareTimestamps(created_at, done_at) > 0) {
@@ -101,6 +102,12 @@ export function runAudit(cwd?: string): AuditIssue[] {
       }
       if (created_at && started_at && compareTimestamps(created_at, started_at) > 0) {
         issues.push({ type: 'FAIL', file: fp, message: 'timestamp ordering violation (started_at < created_at)' });
+      }
+      if (started_at && review_at && compareTimestamps(started_at, review_at) > 0) {
+        issues.push({ type: 'FAIL', file: fp, message: 'timestamp ordering violation (review_at < started_at)' });
+      }
+      if (review_at && done_at && compareTimestamps(review_at, done_at) > 0) {
+        issues.push({ type: 'FAIL', file: fp, message: 'timestamp ordering violation (done_at < review_at)' });
       }
     }
   }

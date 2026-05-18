@@ -3,6 +3,7 @@ import * as path from 'path';
 import * as taskTemplate from './task_template';
 import * as reportStub from './report_stub';
 import * as postReviewReportStub from './post_review_report_stub';
+import * as rules from './rules';
 
 export interface TemplateEntry {
   name: string;
@@ -15,6 +16,7 @@ const BUILTINS: TemplateEntry[] = [
   taskTemplate,
   reportStub,
   postReviewReportStub,
+  rules,
 ];
 
 export function getBuiltins(): TemplateEntry[] {

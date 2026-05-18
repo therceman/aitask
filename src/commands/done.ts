@@ -26,21 +26,17 @@ export function doneCommand(id: string | undefined, flags?: Record<string, strin
 
   if (!force) {
     const base = path.basename(task.path, '.md');
-    const root = tasksDir();
+    const taskDirPath = path.dirname(task.path);
     let found = false;
-    if (fs.existsSync(root)) {
-      for (const dirent of fs.readdirSync(root, { withFileTypes: true })) {
-        if (!dirent.isDirectory()) continue;
-        const dp = path.join(root, dirent.name);
-        if (fs.existsSync(path.join(dp, `${base}_report.md`)) ||
-            fs.existsSync(path.join(dp, `${base}_report_draft.md`))) {
-          found = true;
-          break;
-        }
+    if (fs.existsSync(taskDirPath)) {
+      if (fs.existsSync(path.join(taskDirPath, `${base}_report.md`)) ||
+          fs.existsSync(path.join(taskDirPath, `${base}_report_draft.md`)) ||
+          fs.existsSync(path.join(taskDirPath, 'report.md'))) {
+        found = true;
       }
     }
     if (!found) {
-      console.error(`Error: No report found for "${id}". Use --force to override.`);
+      console.error(`Error: report.md not found for "${id}". Use --force to override.`);
       process.exit(1);
     }
   } else {

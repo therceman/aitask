@@ -1,7 +1,7 @@
 export const name = 'post_review_report_stub';
 export const description = 'Post-task deep code review report template';
 export const filename = 'post_review_report_stub.md';
-export const content = `# DeepSeek Post-Task Review
+export const content = `# Post-Task Review
 
 ## ID
 \`{{id}}\`

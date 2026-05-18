@@ -1,4 +1,4 @@
-# DeepSeek Post-Task Review
+# Post-Task Review
 
 ## ID
 `{{id}}`

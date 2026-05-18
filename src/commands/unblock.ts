@@ -18,11 +18,11 @@ export function unblockCommand(id: string | undefined): void {
     process.exit(1);
   }
 
-  const result = lifecycleTransition(task, 'ready', 'unblocked_at', 'ready');
+  const result = lifecycleTransition(task, 'progress', 'unblocked_at', 'progress');
   if (!result) {
     console.error(`Error: Could not unblock task "${id}"`);
     process.exit(1);
   }
 
-  console.log(`Task ${id} unblocked — moved to tasks/ready/`);
+  console.log(`Task ${id} unblocked — moved to tasks/progress/`);
 }

@@ -1,6 +1,6 @@
 import * as fs from 'fs';
 import * as path from 'path';
-import { TaskMeta, TaskFile, TaskDir, TaskStatus, TASK_DIRS, VALID_STATUSES } from './types';
+import { TaskMeta, TaskFile, TaskDir, TASK_DIRS } from './types';
 import { now, updateFrontmatterTimestamp } from './timestamps';
 import { appendTimelineEntry } from './timeline';
 
@@ -26,7 +26,6 @@ export function formatFrontmatter(meta: TaskMeta): string {
   lines.push(`id: ${meta.id}`);
   lines.push(`title: ${meta.title}`);
   lines.push(`assignee: ${meta.assignee || ''}`);
-  lines.push(`status: ${meta.status}`);
   lines.push(`template: ${meta.template}`);
   lines.push(`tags: ${meta.tags.join(',')}`);
   lines.push(`createdAt: ${meta.createdAt}`);
@@ -53,7 +52,6 @@ export function parseFrontmatter(content: string): { meta: Partial<TaskMeta>; bo
             case 'id': meta.id = val; break;
             case 'title': meta.title = val; break;
             case 'assignee': meta.assignee = val; break;
-            case 'status': meta.status = val as TaskStatus; break;
             case 'template': meta.template = val; break;
             case 'tags': meta.tags = val ? val.split(',').map((t) => t.trim()).filter(Boolean) : []; break;
             case 'createdAt': meta.createdAt = val; break;
@@ -95,7 +93,6 @@ export function scanDir(dir: TaskDir, cwd?: string): TaskFile[] {
         id: fmMeta.id || extractIdFromBody(content) || f.replace(/\.md$/, ''),
         title: fmMeta.title || extractTitleFromBody(content) || f.replace(/\.md$/, ''),
         assignee: fmMeta.assignee || '',
-        status: fmMeta.status || 'todo',
         template: fmMeta.template || 'task',
         tags: fmMeta.tags || [],
         createdAt: fmMeta.createdAt || '',
@@ -180,7 +177,6 @@ export function createTaskFile(
     id,
     title,
     assignee: opts.assignee || '',
-    status: 'todo',
     template: opts.template || 'task',
     tags: opts.tags || [],
     createdAt: now,
@@ -302,10 +298,6 @@ export function validateTask(id: string, cwd?: string): string[] {
     issues.push('No assignee set');
   }
 
-  if (task.meta.status === 'in_progress' && !pair.draft) {
-    issues.push('Task is in_progress but no _report_draft.md found');
-  }
-
   return issues;
 }
 
@@ -322,7 +314,7 @@ export function getMaxNumericId(cwd?: string): number {
     if (!dir.isDirectory()) continue;
     const dp = path.join(base, dir.name);
     for (const f of fs.readdirSync(dp)) {
-      const m = f.match(/^(?:task_|deepseek_)(\d+)/);
+      const m = f.match(/^task_(\d+)/);
       if (m) {
         const n = parseInt(m[1], 10);
         if (n > maxN) maxN = n;
@@ -355,7 +347,6 @@ export function createDraftFile(
     id: `task_${numStr}`,
     title,
     assignee: opts.assignee || '',
-    status: 'todo',
     template: opts.template || 'task',
     tags: opts.tags || [],
     createdAt: now,
@@ -404,7 +395,7 @@ export function publishDraft(
     .replace(/^_|_$/g, '')
     .slice(0, 60);
 
-  const finalId = `deepseek_${numStr}_${slug}`;
+  const finalId = `task_${numStr}_${slug}`;
 
   const finalTaskPath = path.join(todoDir, `${finalId}.md`);
   const finalReportPath = path.join(todoDir, `${finalId}_report_draft.md`);
@@ -420,7 +411,6 @@ export function publishDraft(
     id: finalId,
     title,
     assignee: fmMeta.assignee || '',
-    status: 'todo',
     template: fmMeta.template || 'task',
     tags: fmMeta.tags || [],
     createdAt: fmMeta.createdAt || now,

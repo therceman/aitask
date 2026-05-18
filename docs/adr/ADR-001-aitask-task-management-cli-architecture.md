@@ -13,6 +13,7 @@ Core CLI Team
 - handoff.md (original ADR source)
 - README.md
 - ADR-001-1 (Local Timestamps and Task Audit Rules) (`docs/adr/ADR-001-1-local-timestamps-and-task-audit.md`)
+- ADR-001-2 (Task Lifecycle State Machine and Audit Gates) (`docs/adr/ADR-001-2-task-lifecycle-state-machine-and-audit-gates.md`)
 
 ## Pack Summary
 AITASK is a draft-first CLI task management tool with auto-increment IDs, template support, and publish workflow from draft to todo with naming normalization.
@@ -21,7 +22,7 @@ AITASK is a draft-first CLI task management tool with auto-increment IDs, templa
 
 ### Draft-first workflow
 - Task creation starts in tasks/draft/ with auto-increment IDs
-- publish command moves draft to tasks/todo/ with deepseek naming pattern
+- publish command moves draft to tasks/todo/ with task naming pattern
 - templates command copies report/task stubs
 
 ### Task directory structure
@@ -38,7 +39,7 @@ tasks/
 
 ### ID system
 - Auto-increment task IDs (numerical)
-- publish renames from numeric ID to deepseek_xxx_slug pattern
+- publish renames from numeric ID to task_xxx_slug pattern
 
 ### Binary convention
 - Single canonical binary: `aitask` (no dual naming)
@@ -81,7 +82,7 @@ tasks/
 ## Data / Type Contract
 ```
 tasks/draft/<id>_<slug>.md
-tasks/todo/deepseek_<id>_<slug>.md
+tasks/todo/task_<id>_<slug>.md
 tasks/done/<slug>.md
 ```
 
@@ -101,7 +102,7 @@ tasks/done/<slug>.md
 ## Task Coverage
 - task_001: Bootstrap CLI scaffold
 - task_002: Embed report templates and enhance create/templates
-- deepseek_003: Draft-first workflow with auto-increment IDs and publish
+- task_003: Draft-first workflow with auto-increment IDs and publish
 
 ## Detailed Design
 AITASK is a lightweight CLI for managing task lifecycle. Key design choices:
@@ -114,14 +115,14 @@ AITASK is a lightweight CLI for managing task lifecycle. Key design choices:
 ## Rationale
 - Draft-first ensures review before publish
 - Auto-increment prevents ID collisions
-- Deepseek naming pattern standardizes task filenames
+- Task naming pattern standardizes task filenames
 - Single binary reduces confusion
 - Sender routing fixes AGENTS reply behavior
 
 ## Examples
 ```
 aitask create my-feature          -> tasks/draft/4_my-feature.md
-aitask publish tasks/draft/4_my-feature.md -> tasks/todo/deepseek_004_my-feature.md
+aitask publish tasks/draft/4_my-feature.md -> tasks/todo/task_004_my-feature.md
 aitask --dir ~/git/other queue
 aitask templates
 ```
@@ -136,4 +137,4 @@ aitask templates
 - Multi-repo task aggregation?
 
 ## Final Lock
-AITASK is a draft-first CLI with auto-increment IDs, template stubs, publish workflow, cross-repo --dir support, and sender-routed AGENTS replies. Single canonical binary name. Tasks flow draft to todo to done with deepseek naming normalization.
+AITASK is a draft-first CLI with auto-increment IDs, template stubs, publish workflow, cross-repo --dir support, and sender-routed AGENTS replies. Single canonical binary name. Tasks flow draft to todo to done with task naming normalization.

@@ -18,88 +18,111 @@ node dist/aitask.cjs <command>
 
 | Command                    | Description                                          |
 | -------------------------- | ---------------------------------------------------- |
-| `aitask init`              | Scaffold `tasks/` directory and template stubs       |
-| `aitask create <title>`    | Create a draft task in `tasks/draft/`                |
-| `aitask publish <id>`      | Publish draft to `tasks/todo/` (deepseek naming)     |
-| `aitask list`              | Show active task queue (`tasks/todo/`)               |
-| `aitask assign <id> <user>` | Assign a task to someone                            |
-| `aitask status <id> <s>`   | Set status: `todo`, `in_progress`, `done`, `rejected`, `rework` |
-| `aitask start <id>`        | Start task: ready/ → progress/                        |
-| `aitask review <id>`       | Send to review: progress/ → review/                   |
-| `aitask rework <id>`       | Send back to rework: review/ → rework/                |
-| `aitask done <id>`         | Finalize: requires report (use `--force` to skip check) |
-| `aitask done <id> --force` | Complete even without report (warning shown)        |
-| `aitask reject <id>`       | Move task to `tasks/rework/`                         |
-| `aitask block <id>`        | Block a task: any active → blocked/                   |
-| `aitask unblock <id>`      | Unblock: blocked/ → ready/                            |
-| `aitask validate <id>`     | Check completeness (report, assignee, etc.)          |
-| `aitask templates list`    | List built-in templates                              |
-| `aitask templates materialize [names...]` | Write template files to repo            |
-| `aitask queue`             | Show compact per-folder summary with overdue markers |
+| `aitask init`              | Scaffold `tasks/` directory, `aitask.yml`, and stubs |
+| `aitask create <title>`    | Create a task (default `tasks/draft/`)               |
+| `aitask list`              | Show active tasks across all state folders           |
+| `aitask ready <id>`        | Manager-gated: backlog → ready                       |
+| `aitask start <id>`        | Start task: backlog\|ready → progress                |
+| `aitask review <id>`       | Send to review: progress → review                    |
+| `aitask rework <id>`       | Send back to rework: review → rework                 |
+| `aitask done <id>`         | Complete: requires report (`--force` to skip)        |
+| `aitask block <id>`        | Block a task: progress → blocked                     |
+| `aitask unblock <id>`      | Unblock: blocked → progress                          |
+| `aitask supersede <id>`    | Manager-gated: any → superseded                      |
+| `aitask validate <id>`     | Full structural validation per ADR-001               |
 | `aitask audit`             | Scan all state folders for consistency issues        |
+| `aitask show <id>`         | Token-safe task display (`--sections`, `--full`)     |
+| `aitask path <id>`         | Print resolved absolute file path                    |
+| `aitask rules`             | Print manager contact and display guidance           |
+| `aitask templates <sub>`   | List or materialize built-in templates               |
+| `aitask manager <sub>`     | Configure and interact with task manager             |
 | `aitask help`              | Show help                                            |
 
-## Task lifecycle
+## Task Lifecycle State Machine
+
+### Canonical state folders
+
+Eight canonical state folders under `tasks/`:
+
+```
+tasks/
+├── backlog/    deferred for later
+├── ready/      ready for work
+├── progress/   actively being worked
+├── blocked/    waiting on external dependency
+├── review/     awaiting review
+├── rework/     returned for fixes
+├── done/       completed
+├── superseded/ replaced by another task
+```
+
+State is derived from folder path only — no frontmatter `status` field is used.
 
 ### Flow diagram
 
 ```
-                ┌─────────────┐
-                │   backlog/  │
-                └──────┬──────┘
-                       │
-                   ┌───▼────┐
-                   │ ready/ │
-                   └───┬────┘
-                       │ start
-                   ┌───▼──────┐
-              ┌────│ progress/│────┐
-              │    └───┬──────┘    │
-              │        │ review    │
-              │    ┌───▼────┐      │
-         unblock   │ review/│      │ block
-              │    └───┬────┘      │
-              │        │ rework    │
-              │    ┌───▼────┐      │
-              └────│ rework/│      │
-                   └───┬────┘      │
-                       │ done      │
-                   ┌───▼───┐  ┌───▼──────┐
-                   │ done/ │  │ blocked/ │
-                   └───────┘  └──────────┘
+                  ┌──────────┐
+         ┌───────│  backlog │◄────────┐
+         │       └────┬─────┘         │
+         │            │ start         │
+         │            ▼               │
+         │       ┌──────────┐         │
+         │       │  ready   │         │
+         │       └────┬─────┘         │
+         │            │ start         │
+         │            ▼               │
+         │       ┌──────────┐         │
+         │       │ progress │         │
+         │       └──┬───────┘         │
+         │     ┌────┼──┬──┐           │
+         │     │    │  │  │           │
+         │     ▼    ▼  ▼  ▼           │
+         │  done  review  blocked     │
+         │           │     │          │
+         │           │     │ unblock  │
+         │           │     ▼          │
+         │           │  progress ◄────┘
+         │           │
+         │           │ rework
+         │           ▼
+         │       ┌──────────┐
+         └───────│  rework  │────► superseded
+                 └──────────┘
 ```
 
-### Legacy flow (draft → todo)
+### Lifecycle commands
 
-```
-create ──→ tasks/draft/              # draft task + report_draft
-              │
-              └── publish <id> ──→ tasks/todo/   # deepseek_ID_slug naming
-                                      │
-                                      ├── assign <user>
-                                      ├── status in_progress
-                                      │
-                                      ├── done ──→ tasks/done/
-                                      │              (report_draft → report, move pair)
-                                      │
-                                      └── reject ──→ tasks/rework/
-```
+| Command     | Source states               | Target state | Guard                              |
+|-------------|-----------------------------|--------------|------------------------------------|
+| `ready`     | backlog                     | ready        | Manager-gated                      |
+| `start`     | backlog, ready              | progress     | -                                  |
+| `review`    | progress                    | review       | -                                  |
+| `rework`    | review                      | rework       | -                                  |
+| `done`      | progress, review, rework    | done         | Report presence required           |
+| `block`     | progress                    | blocked      | -                                  |
+| `unblock`   | blocked                     | progress     | -                                  |
+| `supersede` | any                         | superseded   | Manager-gated                      |
+
+### Compatibility aliases
+
+- `tasks/todo/` — compatibility alias for `ready/` state
+- `tasks/archive/` — legacy directory, not part of active state machine
 
 ## File layout
 
 ```
 tasks/
-├── draft/         # Draft tasks (before publishing)
-│   ├── task_NNN.md
-│   └── task_NNN_report_draft.md
-├── todo/          # Active published tasks
-│   ├── deepseek_NNN_slug.md
-│   └── deepseek_NNN_slug_report_draft.md
+├── draft/         # Initial task creation
+├── backlog/       # Deferred for later
+├── todo/          # Published tasks (ready/ alias)
+├── ready/         # Ready for work
+├── progress/      # Actively being worked
+├── blocked/       # Waiting on external dependency
+├── review/        # Awaiting review
+├── rework/        # Returned for fixes
 ├── done/          # Completed tasks + reports
-├── rework/        # Rejected / needs-fix tasks
-├── archive/       # Archived tasks
-├── backlog/       # Backlog tasks
 ├── superseded/    # Superseded tasks
+├── archive/       # Archived tasks (legacy)
 ├── task_template.md
 ├── report_stub.md
 └── post_review_report_stub.md
@@ -130,45 +153,32 @@ aitask templates materialize --dir /some/path   # target directory
 # Initialize
 aitask init
 
-# Draft workflow
-aitask create "Add login feature" --assign alice
-aitask publish 1                    # → tasks/todo/deepseek_001_add_login_feature.md
-
-# Create more drafts (auto-incremented IDs)
+# Task creation
+aitask create "Add login feature"
 aitask create "Fix bug"
 aitask create "Write docs"
-aitask publish 2
-aitask publish 3
 
-# View queues
-aitask list                          # active tasks in todo/
-aitask list --dir draft              # draft tasks
+# View tasks
+aitask list                          # active tasks
 aitask list --dir done --json        # completed (JSON)
 
-# Workflow
-aitask assign deepseek_001_add_login_feature bob
-aitask status deepseek_001_add_login_feature in_progress
-aitask done deepseek_001_add_login_feature   # finalize
+# Lifecycle workflow
+aitask ready task_001_add_login_feature       # backlog → ready
+aitask start task_001_add_login_feature       # ready → progress
+aitask review task_001_add_login_feature      # progress → review
+aitask done task_001_add_login_feature        # finalize
 
-# Reject / rework
-aitask reject deepseek_002_fix_bug
+# Block / unblock
+aitask block task_002_fix_bug "waiting for UX"
+aitask unblock task_002_fix_bug
 
-# Validate
-aitask validate deepseek_001_add_login_feature
-
-# Audit
+# Validate / audit
+aitask validate task_001_add_login_feature
 aitask audit                          # scan for issues
-aitask audit ; echo "exit: $?"       # check exit code (0=pass, 1=fail)
 
 # Done with report guard
 aitask done T001                      # requires report, fails if missing
 aitask done T001 --force              # skip report check
-
-# Queue overview
-aitask queue
-
-# Cross-repo publish
-aitask publish 3 --dir /path/to/other/repo
 ```
 
 ## Install (global)

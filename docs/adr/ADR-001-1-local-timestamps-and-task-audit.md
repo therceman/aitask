@@ -11,6 +11,7 @@ Core CLI Team
 
 ## Related
 - ADR-001 (AITASK Task Management CLI Architecture)
+- ADR-001-2 (Task Lifecycle State Machine and Audit Gates) (`docs/adr/ADR-001-2-task-lifecycle-state-machine-and-audit-gates.md`)
 
 ## Pack Summary
 Defines local timestamp format, timezone configuration, path-derived state as sole source of truth, and task audit rules for the AITASK task lifecycle.

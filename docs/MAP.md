@@ -10,3 +10,4 @@
 ## ADR Index
 - ADR-001: AITASK Task Management CLI Architecture (`docs/adr/ADR-001-aitask-task-management-cli-architecture.md`)
 - ADR-001-addition: Local Timestamps and Task Audit Rules (`docs/adr/ADR-001-1-local-timestamps-and-task-audit.md`)
+- ADR-001-2: Task Lifecycle State Machine and Audit Gates (`docs/adr/ADR-001-2-task-lifecycle-state-machine-and-audit-gates.md`)
