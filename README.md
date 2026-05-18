@@ -61,33 +61,51 @@ State is derived from folder path only — no frontmatter `status` field is used
 ### Flow diagram
 
 ```
+                    ┌──────────┐
+                    │ backlog  │
+                    └────┬─────┘
+                         │ ready
+                         ▼
+                    ┌──────────┐
+                    │  ready   │
+                    └────┬─────┘
+                         │ start
+                         ▼
+                    ┌──────────┐
+              ┌────►│ progress │◄────┐
+              │     └────┬─────┘     │
+              │          │ review    │ start
+              │          ▼           │
+              │     ┌──────────┐     │
+              │     │  review  │     │
+              │     └──┬────┬──┘     │
+              │        │    │        │
+              │ done   │    │ rework │
+              ▼        │    ▼        │
+         ┌──────────┐  │ ┌──────────┐│
+         │   done   │  │ │  rework  │┘
+         └──────────┘  │ └──────────┘
+                       │
+                       │ block
+                       ▼
                   ┌──────────┐
-         ┌───────│  backlog │◄────────┐
-         │       └────┬─────┘         │
-         │            │ start         │
-         │            ▼               │
-         │       ┌──────────┐         │
-         │       │  ready   │         │
-         │       └────┬─────┘         │
-         │            │ start         │
-         │            ▼               │
-         │       ┌──────────┐         │
-         │       │ progress │         │
-         │       └──┬───────┘         │
-         │     ┌────┼──┬──┐           │
-         │     │    │  │  │           │
-         │     ▼    ▼  ▼  ▼           │
-         │  done  review  blocked     │
-         │           │     │          │
-         │           │     │ unblock  │
-         │           │     ▼          │
-         │           │  progress ◄────┘
-         │           │
-         │           │ rework
-         │           ▼
-         │       ┌──────────┐
-         └───────│  rework  │────► superseded
-                 └──────────┘
+                  │ blocked  │
+                  └────┬─────┘
+                       │ unblock
+                       ▼
+              returns to blocked_from
+              or ready as fallback
+```
+
+Any non-done active state can move to superseded:
+
+```
+backlog ─┐
+ready ───┤
+progress ┤
+blocked ─┼──► superseded
+review ──┤
+rework ──┘
 ```
 
 ### Lifecycle commands
@@ -95,13 +113,13 @@ State is derived from folder path only — no frontmatter `status` field is used
 | Command     | Source states               | Target state | Guard                              |
 |-------------|-----------------------------|--------------|------------------------------------|
 | `ready`     | backlog                     | ready        | Manager-gated                      |
-| `start`     | backlog, ready              | progress     | -                                  |
+| `start`     | ready, rework               | progress     | -                                  |
 | `review`    | progress                    | review       | -                                  |
 | `rework`    | review                      | rework       | -                                  |
 | `done`      | progress, review, rework    | done         | Report presence required           |
 | `block`     | progress                    | blocked      | -                                  |
-| `unblock`   | blocked                     | progress     | -                                  |
-| `supersede` | any                         | superseded   | Manager-gated                      |
+| `unblock`   | blocked                     | blocked_from or ready fallback | -                     |
+| `supersede` | backlog, ready, progress, blocked, review, rework | superseded | Manager-gated      |
 
 ### Compatibility aliases
 
