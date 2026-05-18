@@ -1,0 +1,156 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+AITASK="node ${SCRIPT_DIR}/dist/aitask.cjs"
+SMOKE_DIR="/tmp/aitask-smoke-$$"
+CLEANUP_DIRS=()
+
+cleanup() {
+  for d in "${CLEANUP_DIRS[@]}"; do
+    rm -rf "$d" 2>/dev/null || true
+  done
+}
+trap cleanup EXIT
+
+# ---- Test 1: init ----
+echo "=== Test: init ==="
+mkdir -p "$SMOKE_DIR/project1"
+pushd "$SMOKE_DIR/project1" > /dev/null
+$AITASK init
+[ -d tasks/todo ] && [ -d tasks/done ] && [ -d tasks/rework ] && echo "  PASS: dirs created"
+[ -f tasks/task_template.md ] && echo "  PASS: task_template.md"
+[ -f tasks/report_stub.md ] && echo "  PASS: report_stub.md"
+CLEANUP_DIRS+=("$SMOKE_DIR/project1")
+popd > /dev/null
+
+# ---- Test 2: init again (no force) ----
+echo "=== Test: init (duplicate) ==="
+mkdir -p "$SMOKE_DIR/project2"
+pushd "$SMOKE_DIR/project2" > /dev/null
+$AITASK init
+$AITASK init 2>&1 | grep -q "already exists" && echo "  PASS: warns on duplicate"
+CLEANUP_DIRS+=("$SMOKE_DIR/project2")
+popd > /dev/null
+
+# ---- Test 3: init --force ----
+echo "=== Test: init --force ==="
+mkdir -p "$SMOKE_DIR/project3"
+pushd "$SMOKE_DIR/project3" > /dev/null
+$AITASK init
+$AITASK init --force 2>&1 | grep -q "Reinitializing" && echo "  PASS: reinitialize"
+CLEANUP_DIRS+=("$SMOKE_DIR/project3")
+popd > /dev/null
+
+# ---- Test 4: create ----
+echo "=== Test: create ==="
+mkdir -p "$SMOKE_DIR/project4"
+pushd "$SMOKE_DIR/project4" > /dev/null
+$AITASK init
+$AITASK create "Add login feature"
+ID="task_001_add_login_feature"
+[ -f "tasks/todo/${ID}.md" ] && echo "  PASS: task file created"
+ls tasks/*_report_draft.md > /dev/null 2>&1 && echo "  PASS: report draft created"
+CLEANUP_DIRS+=("$SMOKE_DIR/project4")
+popd > /dev/null
+
+# ---- Test 5: create with assign ----
+echo "=== Test: create --assign ==="
+mkdir -p "$SMOKE_DIR/project5"
+pushd "$SMOKE_DIR/project5" > /dev/null
+$AITASK init
+$AITASK create "Fix bug" --assign alice
+grep -q "assignee: alice" tasks/todo/task_001_fix_bug.md && echo "  PASS: assignee in frontmatter"
+CLEANUP_DIRS+=("$SMOKE_DIR/project5")
+popd > /dev/null
+
+# ---- Test 6: list ----
+echo "=== Test: list ==="
+mkdir -p "$SMOKE_DIR/project6"
+pushd "$SMOKE_DIR/project6" > /dev/null
+$AITASK init
+$AITASK create "Task A"
+$AITASK create "Task B"
+$AITASK list | grep -q "Task A" && echo "  PASS: list shows tasks"
+$AITASK list --json | grep -q "task_001" && echo "  PASS: list --json"
+CLEANUP_DIRS+=("$SMOKE_DIR/project6")
+popd > /dev/null
+
+# ---- Test 7: assign ----
+echo "=== Test: assign ==="
+mkdir -p "$SMOKE_DIR/project7"
+pushd "$SMOKE_DIR/project7" > /dev/null
+$AITASK init
+$AITASK create "Task to assign"
+$AITASK assign "task_001_task_to_assign" "bob"
+grep -q "assignee: bob" tasks/todo/task_001_task_to_assign.md && echo "  PASS: assign updated"
+CLEANUP_DIRS+=("$SMOKE_DIR/project7")
+popd > /dev/null
+
+# ---- Test 8: done ----
+echo "=== Test: done ==="
+mkdir -p "$SMOKE_DIR/project8"
+pushd "$SMOKE_DIR/project8" > /dev/null
+$AITASK init
+$AITASK create "Finish feature"
+$AITASK done "task_001_finish_feature"
+[ -f "tasks/done/task_001_finish_feature.md" ] && echo "  PASS: task moved to done"
+[ -f "tasks/done/task_001_finish_feature_report.md" ] && echo "  PASS: report moved to done"
+CLEANUP_DIRS+=("$SMOKE_DIR/project8")
+popd > /dev/null
+
+# ---- Test 9: reject ----
+echo "=== Test: reject ==="
+mkdir -p "$SMOKE_DIR/project9"
+pushd "$SMOKE_DIR/project9" > /dev/null
+$AITASK init
+$AITASK create "Bad idea"
+$AITASK reject "task_001_bad_idea"
+[ -f "tasks/rework/task_001_bad_idea.md" ] && echo "  PASS: task moved to rework"
+CLEANUP_DIRS+=("$SMOKE_DIR/project9")
+popd > /dev/null
+
+# ---- Test 10: status ----
+echo "=== Test: status ==="
+mkdir -p "$SMOKE_DIR/project10"
+pushd "$SMOKE_DIR/project10" > /dev/null
+$AITASK init
+$AITASK create "WIP task" --assign alice
+$AITASK status "task_001_wip_task" in_progress
+grep -q "status: in_progress" tasks/todo/task_001_wip_task.md && echo "  PASS: status updated"
+CLEANUP_DIRS+=("$SMOKE_DIR/project10")
+popd > /dev/null
+
+# ---- Test 11: validate ----
+echo "=== Test: validate ==="
+mkdir -p "$SMOKE_DIR/project11"
+pushd "$SMOKE_DIR/project11" > /dev/null
+$AITASK init
+$AITASK create "Valid task" --assign alice
+$AITASK validate "task_001_valid_task" && echo "  PASS: validate passes"
+$AITASK create "No assignee"
+$AITASK validate "task_002_no_assignee" 2>&1 && { echo "  FAIL: should have issues"; exit 1; } || echo "  PASS: validate catches missing assignee"
+CLEANUP_DIRS+=("$SMOKE_DIR/project11")
+popd > /dev/null
+
+# ---- Test 12: list --dir done ----
+echo "=== Test: list --dir done ==="
+mkdir -p "$SMOKE_DIR/project12"
+pushd "$SMOKE_DIR/project12" > /dev/null
+$AITASK init
+$AITASK create "Done task" --assign bob
+$AITASK done "task_001_done_task"
+$AITASK list --dir done | grep -q "Done task" && echo "  PASS: list done dir"
+CLEANUP_DIRS+=("$SMOKE_DIR/project12")
+popd > /dev/null
+
+# ---- Test 13: version ----
+echo "=== Test: --version ==="
+$AITASK --version | grep -q "aitask v" && echo "  PASS: version"
+
+# ---- Test 14: help ----
+echo "=== Test: help ==="
+$AITASK help | grep -q "aitask" && echo "  PASS: help"
+
+echo ""
+echo "=== All smoke tests passed ==="
