@@ -43,19 +43,7 @@ export function listCommand(flags: Record<string, string | boolean>): void {
     console.log('No active tasks.');
     return;
   }
-
-  const maxIdLen = Math.max(...tasks.map((t) => t.meta.id.length), 8);
-
-  console.log('Active tasks:');
-  console.log('');
-  console.log(`${'ID'.padEnd(maxIdLen)}  DIR           ASSIGNEE       TITLE`);
-  console.log('-'.repeat(maxIdLen + 60));
-
   for (const t of tasks) {
-    const id = t.meta.id.padEnd(maxIdLen);
-    const dirCol = t.dir.padEnd(12);
-    const assignee = (t.meta.assignee || '-').padEnd(13);
-    const tags = t.meta.tags.length > 0 ? ` [${t.meta.tags.join(',')}]` : '';
-    console.log(`${id}  ${dirCol}  ${assignee}  ${t.meta.title}${tags}`);
+    console.log(`${t.meta.id} [${t.dir}]`);
   }
 }

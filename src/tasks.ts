@@ -71,8 +71,12 @@ function extractIdFromBody(body: string): string {
 }
 
 function extractTitleFromBody(body: string): string {
-  const m = body.match(/^# Task\s+(?:\d+:\s*)?(.+)$/m);
-  return m ? m[1].trim() : '';
+  const legacy = body.match(/^# Task\s+(?:\d+:\s*)?(.+)$/m);
+  if (legacy) return legacy[1].trim();
+  const modern = body.match(/^#\s+(?:ADR-\d{3}-T\d{3}[A-Z]?|NO-ADR-T\d{3}[A-Z]?)\s*:\s*(.+)$/mi);
+  if (modern) return modern[1].trim();
+  const generic = body.match(/^#\s+(.+)$/m);
+  return generic ? generic[1].trim() : '';
 }
 
 export function scanDir(dir: TaskDir, cwd?: string): TaskFile[] {

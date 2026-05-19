@@ -125,13 +125,13 @@ Lifecycle Commands:
   block <id> [reason]     Block a task: progress -> blocked
   unblock <id>            Unblock: blocked -> progress
   supersede <id>          Manager-gated: any -> superseded
-  queue                   Show tabular task queue with state, timestamp, title
+  queue                   Show compact task queue (<task_id> [state])
   audit                   Scan task folders for consistency issues
 
 Task Management Commands:
   init                    Scaffold tasks/ directory, aitask.yml, and template stubs
   create <title>          Create a draft task in tasks/draft/ or tasks/ready/
-  list                    Show active tasks across all state folders
+  list                    Show compact active tasks (<task_id> [state])
   validate <id>           Full structural validation per ADR-001
   templates <subcommand>  List or materialize templates
   show <id>               Token-safe task display (--sections, --full)
