@@ -1,6 +1,5 @@
-import { resolveTask, lifecycleTransition, tasksDir } from '../tasks';
+import { resolveTask, lifecycleTransition, findReportPair } from '../tasks';
 import * as fs from 'fs';
-import * as path from 'path';
 
 const DONE_FROM = ['review', 'rework', 'progress'];
 
@@ -23,19 +22,10 @@ export function doneCommand(id: string | undefined, flags?: Record<string, strin
   }
 
   const force = flags?.force === true;
+  const pair = findReportPair(task);
 
   if (!force) {
-    const base = path.basename(task.path, '.md');
-    const taskDirPath = path.dirname(task.path);
-    let found = false;
-    if (fs.existsSync(taskDirPath)) {
-      if (fs.existsSync(path.join(taskDirPath, `${base}_report.md`)) ||
-          fs.existsSync(path.join(taskDirPath, `${base}_report_draft.md`)) ||
-          fs.existsSync(path.join(taskDirPath, 'report.md'))) {
-        found = true;
-      }
-    }
-    if (!found) {
+    if (!pair.report && !pair.draft) {
       console.error(`Error: report.md not found for "${id}". Use --force to override.`);
       process.exit(1);
     }
@@ -43,13 +33,10 @@ export function doneCommand(id: string | undefined, flags?: Record<string, strin
     console.warn(`Warning: Completing task "${id}" without report.`);
   }
 
-  const content = fs.readFileSync(task.path, 'utf-8');
-
-  const pair = findPair(task);
   if (pair.draft && !pair.report) {
     const reportPath = pair.draft.replace('_report_draft.md', '_report.md');
     fs.renameSync(pair.draft, reportPath);
-    console.log(`Renamed ${path.basename(pair.draft)} -> ${path.basename(reportPath)}`);
+    console.log(`Renamed draft report -> final report`);
   }
 
   const result = lifecycleTransition(task, 'done', 'done_at', 'done');
@@ -59,20 +46,4 @@ export function doneCommand(id: string | undefined, flags?: Record<string, strin
   }
 
   console.log(`Task ${id} done — moved to tasks/done/`);
-}
-
-function findPair(task: { path: string }): { draft?: string; report?: string } {
-  const dir = path.dirname(task.path);
-  const base = path.basename(task.path, '.md');
-  const result: { draft?: string; report?: string } = {};
-  const root = tasksDir();
-  const searchDirs = [...new Set([dir, root])];
-  for (const sd of searchDirs) {
-    if (!fs.existsSync(sd)) continue;
-    for (const f of fs.readdirSync(sd)) {
-      if (f === `${base}_report_draft.md`) result.draft = path.join(sd, f);
-      if (f === `${base}_report.md`) result.report = path.join(sd, f);
-    }
-  }
-  return result;
 }
