@@ -112,6 +112,16 @@ export function validateCommand(id: string | undefined): void {
     }
   }
 
+  // 8. Checklist section is mandatory
+  if (!/^##\s+Checklist\s*$/m.test(content)) {
+    issues.push('Task is missing mandatory "## Checklist" section');
+  }
+
+  // 9. Checklist must contain at least one markdown checkbox item
+  if (!/^\s*-\s+\[[ xX]\]\s+.+$/m.test(content)) {
+    issues.push('Task checklist has no checkbox items');
+  }
+
   console.log(`Validation for ${id}:`);
   console.log(`  Location: tasks/${task.dir}/${path.basename(task.path)}`);
   console.log(`  Title: ${task.meta.title}`);

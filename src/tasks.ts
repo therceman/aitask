@@ -138,7 +138,10 @@ function collectMarkdownFilesRecursive(root: string): string[] {
 
 function likelyReportName(base: string, filePath: string): boolean {
   const name = path.basename(filePath).toLowerCase();
+  const idMatch = base.match(/(ADR-\d{3}-T\d{3}[A-Z]?|NO-ADR-T\d{3}[A-Z]?)/i);
+  const taskId = idMatch ? idMatch[1].toLowerCase() : '';
   if (name === `${base.toLowerCase()}_report.md` || name === `${base.toLowerCase()}_report_draft.md`) return true;
+  if (taskId && name.includes(taskId) && name.endsWith('.md') && name.includes('report')) return true;
   if (!name.includes(base.toLowerCase())) return false;
   if (!name.endsWith('.md')) return false;
   return name.includes('report');
@@ -152,6 +155,7 @@ export function findReportFiles(task: TaskFile, cwd?: string): { draft?: string;
     path.dirname(task.path),
     taskRoot,
     path.join(repoRoot, 'reports'),
+    path.join(repoRoot, 'reports', 'tasks'),
     path.join(repoRoot, 'reports', 'rendering'),
   ];
 

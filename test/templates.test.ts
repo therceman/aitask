@@ -55,7 +55,8 @@ describe('templates', () => {
       expect(result).toContain('task_001_test');
       expect(result).toContain('Test Task');
       expect(result).toContain('## Objective');
-      expect(result).toContain('## Acceptance Criteria');
+      expect(result).toContain('## Acceptance criteria');
+      expect(result).toContain('## Checklist (Mandatory)');
     });
   });
 

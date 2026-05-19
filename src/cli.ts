@@ -20,6 +20,7 @@ import { showCommand } from './commands/show';
 import { pathCommand } from './commands/path';
 import { rulesCommand } from './commands/rules';
 import { managerCommand } from './commands/manager';
+import { checklistCommand } from './commands/checklist';
 
 interface ParseResult {
   command: string;
@@ -37,6 +38,7 @@ const KNOWN_COMMANDS = [
   'init', 'create', 'list', 'done', 'validate', 'templates', 'help',
   'start', 'review', 'rework', 'block', 'unblock', 'supersede', 'queue', 'audit',
   'ready', 'show', 'path', 'rules', 'manager',
+  'checklist',
 ];
 
 function parseArgs(argv: string[]): ParseResult {
@@ -136,6 +138,7 @@ Task Management Commands:
   path <id>               Print resolved absolute file path
   rules                   Print manager contact and display guidance
   manager <subcommand>    Configure and interact with task manager
+  checklist <subcommand>  Show/update/check task checklist
   help                    Show this help message
 
 Create options:
@@ -173,6 +176,12 @@ Manager subcommands:
   contact test                              Test contact command
   call <id> --message "<msg>"               Call manager with message
   call <id> --transition <t> --report <p>   Call manager with transition report
+
+Checklist subcommands:
+  show <id>                                 Show checklist items
+  update <id>                               Replace checklist items from stdin
+  check <id>                                Fail when unchecked items exist
+  check <id> <n> <file> <lines>             Verify one checked entry evidence anchor
 
 Lifecycle Workflow:
   aitask start 5                  # start task, moves ready/ -> progress/
@@ -277,6 +286,10 @@ async function runCli(): Promise<void> {
 
       case 'manager':
         managerCommand(args, flags);
+        break;
+
+      case 'checklist':
+        checklistCommand(args);
         break;
 
       default:
