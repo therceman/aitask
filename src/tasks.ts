@@ -210,12 +210,21 @@ export function resolveTask(id: string, cwd?: string): TaskFile | undefined {
   if (task) return task;
 
   const all = findAllTasks(cwd);
+  const idUpper = String(id).toUpperCase();
   task = all.find(t => t.meta.id.endsWith(id));
   if (task) return task;
 
   task = all.find(t => {
     const baseName = path.basename(t.path, '.md');
-    return baseName === id || baseName.endsWith(`_${id}`) || baseName.includes(`_${id}_`);
+    const baseUpper = baseName.toUpperCase();
+    return (
+      baseName === id
+      || baseName.endsWith(`_${id}`)
+      || baseName.includes(`_${id}_`)
+      || baseUpper === idUpper
+      || baseUpper.startsWith(`${idUpper}-`)
+      || baseUpper.startsWith(`${idUpper}_`)
+    );
   });
   if (task) return task;
 

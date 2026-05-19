@@ -13,39 +13,47 @@ TODO
 ## Objective
 - One precise implementation objective.
 
-## In scope
-- 
-
-## Out of scope
-- 
-
-## MUST implement
-- [ ] 
-
-## MUST NOT implement
-- [ ] 
-
-## Files likely involved
-- 
-
-## Validation commands
-~~~bash
-npm run -s check
-~~~
-
-## Search audit
-~~~bash
-rg -n "<pattern>" docs tasks apps packages
-~~~
-
-## Acceptance criteria
-- [ ] 
-
 ## Checklist (Mandatory)
-- [ ] docs read completed #docs/MAP.md:1-30
-- [ ] primary changes completed #<path>:<line-range>
-- [ ] checks pass recorded #task_result.md:1-80
-- [ ] report finalized #reports/tasks/<ADR>/<task_id>_report.md:1-120
+### Required reading
+- [ ] Read docs/MAP.md.
+- [ ] Read primary ADR.
+- [ ] Read workflow rules.
+- [ ] Read tasks/report_stub.md.
+
+### Must implement
+- [ ] <implementation item 1>
+- [ ] <implementation item 2>
+
+### Must not implement
+- [ ] Do not add out-of-scope features.
+- [ ] Do not modify unrelated modules.
+
+### Must implement evidence
+- [ ] Item 1 evidence listed:
+  - Files:
+  - Lines/ranges:
+  - Summary:
+- [ ] Item 2 evidence listed:
+  - Files:
+  - Lines/ranges:
+  - Summary:
+
+### Validation
+- [ ] `npm run -s check` passes.
+- [ ] task-specific validation commands pass.
+
+### Search audit
+- [ ] Search audit completed.
+- [ ] Remaining hits classified.
+
+### Reporting
+- [ ] Draft report created.
+- [ ] Final report created.
+- [ ] Final report uses `tasks/report_stub.md` section order.
+- [ ] Final report includes exact line: `Check: npm run -s check -> exit <code>`.
+- [ ] Final report lists commands with exit codes.
+- [ ] Final report lists added unrequested features, or `none`.
+- [ ] Manager closure gate passes: `aitask checklist check <task_id>`.
 
 ## Reporting Contract (Mandatory)
 - Draft: `reports/tasks/<ADR>/<task_id>_report_draft.md`

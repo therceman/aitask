@@ -181,7 +181,6 @@ Checklist subcommands:
   show <id>                                 Show checklist items
   update <id>                               Replace checklist items from stdin
   check <id>                                Fail when unchecked items exist
-  check <id> <n> <file> <lines>             Verify one checked entry evidence anchor
 
 Lifecycle Workflow:
   aitask start 5                  # start task, moves ready/ -> progress/
