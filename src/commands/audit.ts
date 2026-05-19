@@ -52,6 +52,26 @@ export function runAudit(cwd?: string, opts?: AuditOptions): AuditIssue[] {
 
   if (!fs.existsSync(base)) return issues;
 
+  const requiredLifecycleDirs: TaskDir[] = ['backlog', 'ready', 'progress', 'review', 'rework', 'blocked', 'done', 'superseded'];
+  for (const dir of requiredLifecycleDirs) {
+    const dirPath = path.join(base, dir);
+    if (!fs.existsSync(dirPath)) {
+      issues.push({ type: 'FAIL', file: dirPath, message: 'missing canonical lifecycle folder' });
+    }
+  }
+
+  const todoPath = path.join(base, 'todo');
+  if (fs.existsSync(todoPath)) {
+    const todoTaskFiles = collectTaskFiles(todoPath);
+    if (todoTaskFiles.length > 0) {
+      issues.push({
+        type: 'FAIL',
+        file: todoPath,
+        message: 'legacy state folder in use (tasks/todo). Migrate tasks to backlog/ready.',
+      });
+    }
+  }
+
   for (const task of findAllTasks(cwd)) {
     const dir = task.dir;
     const fp = task.path;
@@ -124,6 +144,27 @@ export function runAudit(cwd?: string, opts?: AuditOptions): AuditIssue[] {
   }
 
   return issues;
+}
+
+function collectTaskFiles(root: string): string[] {
+  const out: string[] = [];
+  if (!fs.existsSync(root)) return out;
+  const walk = (dirPath: string): void => {
+    for (const entry of fs.readdirSync(dirPath)) {
+      const filePath = path.join(dirPath, entry);
+      const stat = fs.statSync(filePath);
+      if (stat.isDirectory()) {
+        walk(filePath);
+        continue;
+      }
+      if (!entry.endsWith('.md')) continue;
+      if (entry.endsWith('_report.md') || entry.endsWith('_report_draft.md')) continue;
+      if (entry.toLowerCase() === 'readme.md') continue;
+      out.push(filePath);
+    }
+  };
+  walk(root);
+  return out;
 }
 
 function getFmField(content: string, key: string): string | undefined {
