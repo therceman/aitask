@@ -142,7 +142,7 @@ function collectMarkdownFilesRecursive(root: string): string[] {
 
 function likelyReportName(base: string, filePath: string): boolean {
   const name = path.basename(filePath).toLowerCase();
-  const idMatch = base.match(/(ADR-\d{3}-T\d{3}[A-Z]?|NO-ADR-T\d{3}[A-Z]?)/i);
+  const idMatch = base.match(/(ADR-\d{3}-T\d{3}[A-Z]?|ADR-GOV-T\d{3}[A-Z]?|AEP-T\d{3}[A-Z]?|NO-ADR-T\d{3}[A-Z]?)/i);
   const taskId = idMatch ? idMatch[1].toLowerCase() : '';
   if (name === `${base.toLowerCase()}_report.md` || name === `${base.toLowerCase()}_report_draft.md`) return true;
   if (taskId && name.includes(taskId) && name.endsWith('.md') && name.includes('report')) return true;
