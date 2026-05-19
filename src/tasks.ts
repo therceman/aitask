@@ -340,10 +340,21 @@ export function lifecycleTransition(
 ): { task: TaskFile; content: string } | undefined {
   const content = fs.readFileSync(task.path, 'utf-8');
   const ts = now();
+  const statusLabel = String(newState || toDir).toUpperCase();
+
+  function syncStatusSection(input: string, status: string): string {
+    const hasSection = /^##\s+Status\s*$/mi.test(input);
+    if (!hasSection) return input;
+    return input.replace(
+      /(##\s+Status\s*\n)([\s\S]*?)(?=\n##\s+|\n*$)/i,
+      (_m, head) => `${head}${status}\n`,
+    );
+  }
 
   let updated = updateFrontmatterTimestamp(content, timestampKey, ts);
   updated = updateFrontmatterTimestamp(updated, 'updated_at', ts);
   updated = appendTimelineEntry(updated, ts, newState, reason);
+  updated = syncStatusSection(updated, statusLabel);
 
   const pair = findReportPair(task, cwd);
   const toBase = taskDir(toDir, cwd);
