@@ -161,6 +161,7 @@ export function findReportFiles(task: TaskFile, cwd?: string): { draft?: string;
     for (const filePath of collectMarkdownFilesRecursive(root)) {
       if (seen.has(filePath)) continue;
       seen.add(filePath);
+      if (path.resolve(filePath) === path.resolve(task.path)) continue;
       if (!likelyReportName(base, filePath)) continue;
       const lower = path.basename(filePath).toLowerCase();
       if (lower.includes('draft') && !result.draft) {
