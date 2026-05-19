@@ -80,32 +80,116 @@ export function scanDir(dir: TaskDir, cwd?: string): TaskFile[] {
   if (!fs.existsSync(d)) return [];
 
   const files: TaskFile[] = [];
-  for (const f of fs.readdirSync(d)) {
-    const fp = path.join(d, f);
-    if (!f.endsWith('.md') || !fs.statSync(fp).isFile()) continue;
-    if (f.endsWith('_report.md') || f.endsWith('_report_draft.md')) continue;
+  const walk = (dirPath: string): void => {
+    for (const f of fs.readdirSync(dirPath)) {
+      const fp = path.join(dirPath, f);
+      const stat = fs.statSync(fp);
+      if (stat.isDirectory()) {
+        walk(fp);
+        continue;
+      }
+      if (!f.endsWith('.md')) continue;
+      if (f.endsWith('_report.md') || f.endsWith('_report_draft.md')) continue;
+      if (f.toLowerCase() === 'readme.md') continue;
 
-    const content = fs.readFileSync(fp, 'utf-8');
-    const { meta: fmMeta, body } = parseFrontmatter(content);
+      const content = fs.readFileSync(fp, 'utf-8');
+      const { meta: fmMeta, body } = parseFrontmatter(content);
 
-    files.push({
-      meta: {
-        id: fmMeta.id || extractIdFromBody(content) || f.replace(/\.md$/, ''),
-        title: fmMeta.title || extractTitleFromBody(content) || f.replace(/\.md$/, ''),
-        assignee: fmMeta.assignee || '',
-        template: fmMeta.template || 'task',
-        tags: fmMeta.tags || [],
-        createdAt: fmMeta.createdAt || '',
-        updatedAt: fmMeta.updatedAt || '',
-      },
-      path: fp,
-      dir,
-      body,
-    });
-  }
+      files.push({
+        meta: {
+          id: fmMeta.id || extractIdFromBody(content) || f.replace(/\.md$/, ''),
+          title: fmMeta.title || extractTitleFromBody(content) || f.replace(/\.md$/, ''),
+          assignee: fmMeta.assignee || '',
+          template: fmMeta.template || 'task',
+          tags: fmMeta.tags || [],
+          createdAt: fmMeta.createdAt || '',
+          updatedAt: fmMeta.updatedAt || '',
+        },
+        path: fp,
+        dir,
+        body,
+      });
+    }
+  };
+
+  walk(d);
 
   files.sort((a, b) => a.meta.id.localeCompare(b.meta.id));
   return files;
+}
+
+function collectMarkdownFilesRecursive(root: string): string[] {
+  if (!fs.existsSync(root)) return [];
+  const out: string[] = [];
+  const walk = (dirPath: string): void => {
+    for (const name of fs.readdirSync(dirPath)) {
+      const filePath = path.join(dirPath, name);
+      const stat = fs.statSync(filePath);
+      if (stat.isDirectory()) {
+        walk(filePath);
+      } else if (name.endsWith('.md')) {
+        out.push(filePath);
+      }
+    }
+  };
+  walk(root);
+  return out;
+}
+
+function likelyReportName(base: string, filePath: string): boolean {
+  const name = path.basename(filePath).toLowerCase();
+  if (name === `${base.toLowerCase()}_report.md` || name === `${base.toLowerCase()}_report_draft.md`) return true;
+  if (!name.includes(base.toLowerCase())) return false;
+  if (!name.endsWith('.md')) return false;
+  return name.includes('report');
+}
+
+export function findReportFiles(task: TaskFile, cwd?: string): { draft?: string; report?: string } {
+  const base = path.basename(task.path, '.md');
+  const repoRoot = cwd || process.cwd();
+  const taskRoot = tasksDir(repoRoot);
+  const searchRoots = [
+    path.dirname(task.path),
+    taskRoot,
+    path.join(repoRoot, 'reports'),
+    path.join(repoRoot, 'reports', 'rendering'),
+  ];
+
+  const result: { draft?: string; report?: string } = {};
+  const seen = new Set<string>();
+  for (const root of searchRoots) {
+    for (const filePath of collectMarkdownFilesRecursive(root)) {
+      if (seen.has(filePath)) continue;
+      seen.add(filePath);
+      if (!likelyReportName(base, filePath)) continue;
+      const lower = path.basename(filePath).toLowerCase();
+      if (lower.includes('draft') && !result.draft) {
+        result.draft = filePath;
+      } else if (!lower.includes('draft') && !result.report) {
+        result.report = filePath;
+      }
+    }
+  }
+  return result;
+}
+
+export function findReportPair(task: TaskFile, cwd?: string): { draft?: string; report?: string } {
+  const resolved = findReportFiles(task, cwd);
+  if (resolved.report || resolved.draft) return resolved;
+
+  const dir = path.dirname(task.path);
+  const base = path.basename(task.path, '.md');
+  const fallback: { draft?: string; report?: string } = {};
+  const root = tasksDir(cwd || process.cwd());
+  const searchDirs = [...new Set([dir, root])];
+  for (const sd of searchDirs) {
+    if (!fs.existsSync(sd)) continue;
+    for (const f of fs.readdirSync(sd)) {
+      if (f === `${base}_report_draft.md`) fallback.draft = path.join(sd, f);
+      if (f === `${base}_report.md`) fallback.report = path.join(sd, f);
+    }
+  }
+  return fallback;
 }
 
 export function findTask(id: string, cwd?: string): TaskFile | undefined {
@@ -139,23 +223,6 @@ export function findAllTasks(cwd?: string): TaskFile[] {
     all.push(...scanDir(dir, cwd));
   }
   return all;
-}
-
-export function findReportPair(task: TaskFile, cwd?: string): { draft?: string; report?: string } {
-  const dir = path.dirname(task.path);
-  const base = path.basename(task.path, '.md');
-  const result: { draft?: string; report?: string } = {};
-
-  const root = tasksDir(cwd || process.cwd());
-  const searchDirs = [...new Set([dir, root])];
-  for (const sd of searchDirs) {
-    if (!fs.existsSync(sd)) continue;
-    for (const f of fs.readdirSync(sd)) {
-      if (f === `${base}_report_draft.md`) result.draft = path.join(sd, f);
-      if (f === `${base}_report.md`) result.report = path.join(sd, f);
-    }
-  }
-  return result;
 }
 
 export function createTaskFile(

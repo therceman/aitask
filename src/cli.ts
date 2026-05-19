@@ -124,7 +124,7 @@ Lifecycle Commands:
   unblock <id>            Unblock: blocked -> progress
   supersede <id>          Manager-gated: any -> superseded
   queue                   Show tabular task queue with state, timestamp, title
-  audit                   Scan all state folders for consistency issues
+  audit                   Scan task folders for consistency issues
 
 Task Management Commands:
   init                    Scaffold tasks/ directory, aitask.yml, and template stubs
@@ -150,6 +150,9 @@ List options:
   --assignee <user>       Filter by assignee
   --dir <dir>             Directory to list (default: all active)
   --json                  JSON output
+
+Audit options:
+  --active-only           Audit active states only (skip done/archive history)
 
 Templates subcommands:
   list                    List built-in templates
@@ -249,7 +252,7 @@ async function runCli(): Promise<void> {
         break;
 
       case 'audit':
-        auditCommand();
+        auditCommand({ activeOnly: flags['active-only'] === true });
         break;
 
       case 'supersede':

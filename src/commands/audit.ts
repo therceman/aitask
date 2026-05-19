@@ -1,7 +1,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import { TASK_DIRS, TaskDir } from '../types';
-import { tasksDir } from '../tasks';
+import { tasksDir, findAllTasks, findReportPair } from '../tasks';
 
 export interface AuditIssue {
   type: 'FAIL' | 'WARN';
@@ -9,8 +9,12 @@ export interface AuditIssue {
   message: string;
 }
 
-export function auditCommand(): void {
-  const issues = runAudit();
+export interface AuditOptions {
+  activeOnly?: boolean;
+}
+
+export function auditCommand(opts?: AuditOptions): void {
+  const issues = runAudit(undefined, opts);
 
   if (issues.length === 0) {
     const total = countAllTasks();
@@ -38,77 +42,63 @@ function reducePath(p: string): string {
 }
 
 export function countAllTasks(cwd?: string): number {
-  let count = 0;
-  for (const dir of TASK_DIRS) {
-    const d = path.join(tasksDir(cwd), dir);
-    if (!fs.existsSync(d)) continue;
-    for (const f of fs.readdirSync(d)) {
-      if (f.endsWith('.md') && !f.endsWith('_report.md') && !f.endsWith('_report_draft.md')) {
-        count++;
-      }
-    }
-  }
-  return count;
+  return findAllTasks(cwd).length;
 }
 
-export function runAudit(cwd?: string): AuditIssue[] {
+export function runAudit(cwd?: string, opts?: AuditOptions): AuditIssue[] {
   const issues: AuditIssue[] = [];
   const base = tasksDir(cwd);
+  const activeOnly = opts?.activeOnly === true;
 
   if (!fs.existsSync(base)) return issues;
 
-  for (const dir of TASK_DIRS) {
-    const d = path.join(base, dir);
-    if (!fs.existsSync(d)) continue;
+  for (const task of findAllTasks(cwd)) {
+    const dir = task.dir;
+    const fp = task.path;
     if (dir === 'archive' || dir === 'superseded') continue;
+    if (activeOnly && dir === 'done') continue;
+    const content = fs.readFileSync(fp, 'utf-8');
 
-    for (const f of fs.readdirSync(d)) {
-      if (!f.endsWith('.md') || f.endsWith('_report.md') || f.endsWith('_report_draft.md')) continue;
-      const fp = path.join(d, f);
-      const content = fs.readFileSync(fp, 'utf-8');
-      const baseName = f.replace(/\.md$/, '');
-
-      if (dir === 'done') {
-        const reportPath = findReportFile(baseName, base);
-        if (!reportPath) {
-          issues.push({ type: 'FAIL', file: fp, message: 'missing report' });
-        } else {
-          const reportContent = fs.readFileSync(reportPath, 'utf-8').trim();
-          if (!reportContent) {
-            issues.push({ type: 'FAIL', file: fp, message: 'report is empty' });
-          } else if (!reportContent.includes('## Summary') && !reportContent.includes('## Task ID')) {
-            issues.push({ type: 'WARN', file: fp, message: 'report may lack required sections' });
-          }
+    const pair = findReportPair(task, cwd);
+    const reportPath = pair.report || pair.draft;
+    if (dir === 'done') {
+      if (!reportPath) {
+        issues.push({ type: 'FAIL', file: fp, message: 'missing report' });
+      } else {
+        const reportContent = fs.readFileSync(reportPath, 'utf-8').trim();
+        if (!reportContent) {
+          issues.push({ type: 'FAIL', file: fp, message: 'report is empty' });
+        } else if (!reportContent.includes('## Summary') && !reportContent.includes('## Task ID')) {
+          issues.push({ type: 'WARN', file: fp, message: 'report may lack required sections' });
         }
       }
+    }
 
-      if (dir !== 'done' && dir !== 'draft') {
-        const reportPath = findReportFile(baseName, base);
-        if (reportPath) {
-          issues.push({ type: 'WARN', file: fp, message: 'report exists but task not done' });
-        }
+    if (dir !== 'done' && dir !== 'draft') {
+      if (reportPath) {
+        issues.push({ type: 'WARN', file: fp, message: 'report exists but task not done' });
       }
+    }
 
-      const created_at = getFmField(content, 'created_at') || getFmField(content, 'createdAt');
-      const started_at = getFmField(content, 'started_at');
-      const review_at = getFmField(content, 'review_at');
-      const done_at = getFmField(content, 'done_at');
+    const created_at = getFmField(content, 'created_at') || getFmField(content, 'createdAt');
+    const started_at = getFmField(content, 'started_at');
+    const review_at = getFmField(content, 'review_at');
+    const done_at = getFmField(content, 'done_at');
 
-      if (created_at && done_at && compareTimestamps(created_at, done_at) > 0) {
-        issues.push({ type: 'FAIL', file: fp, message: 'timestamp ordering violation (done_at < created_at)' });
-      }
-      if (started_at && done_at && compareTimestamps(started_at, done_at) > 0) {
-        issues.push({ type: 'FAIL', file: fp, message: 'timestamp ordering violation (done_at < started_at)' });
-      }
-      if (created_at && started_at && compareTimestamps(created_at, started_at) > 0) {
-        issues.push({ type: 'FAIL', file: fp, message: 'timestamp ordering violation (started_at < created_at)' });
-      }
-      if (started_at && review_at && compareTimestamps(started_at, review_at) > 0) {
-        issues.push({ type: 'FAIL', file: fp, message: 'timestamp ordering violation (review_at < started_at)' });
-      }
-      if (review_at && done_at && compareTimestamps(review_at, done_at) > 0) {
-        issues.push({ type: 'FAIL', file: fp, message: 'timestamp ordering violation (done_at < review_at)' });
-      }
+    if (created_at && done_at && compareTimestamps(created_at, done_at) > 0) {
+      issues.push({ type: 'FAIL', file: fp, message: 'timestamp ordering violation (done_at < created_at)' });
+    }
+    if (started_at && done_at && compareTimestamps(started_at, done_at) > 0) {
+      issues.push({ type: 'FAIL', file: fp, message: 'timestamp ordering violation (done_at < started_at)' });
+    }
+    if (created_at && started_at && compareTimestamps(created_at, started_at) > 0) {
+      issues.push({ type: 'FAIL', file: fp, message: 'timestamp ordering violation (started_at < created_at)' });
+    }
+    if (started_at && review_at && compareTimestamps(started_at, review_at) > 0) {
+      issues.push({ type: 'FAIL', file: fp, message: 'timestamp ordering violation (review_at < started_at)' });
+    }
+    if (review_at && done_at && compareTimestamps(review_at, done_at) > 0) {
+      issues.push({ type: 'FAIL', file: fp, message: 'timestamp ordering violation (done_at < review_at)' });
     }
   }
 
@@ -134,22 +124,6 @@ export function runAudit(cwd?: string): AuditIssue[] {
   }
 
   return issues;
-}
-
-function findReportFile(baseName: string, base: string): string | undefined {
-  for (const dirent of fs.readdirSync(base, { withFileTypes: true })) {
-    if (!dirent.isDirectory()) continue;
-    const dp = path.join(base, dirent.name);
-    const reportPath = path.join(dp, `${baseName}_report.md`);
-    if (fs.existsSync(reportPath)) return reportPath;
-    const draftPath = path.join(dp, `${baseName}_report_draft.md`);
-    if (fs.existsSync(draftPath)) return draftPath;
-  }
-  const rootReport = path.join(base, `${baseName}_report.md`);
-  if (fs.existsSync(rootReport)) return rootReport;
-  const rootDraft = path.join(base, `${baseName}_report_draft.md`);
-  if (fs.existsSync(rootDraft)) return rootDraft;
-  return undefined;
 }
 
 function getFmField(content: string, key: string): string | undefined {
