@@ -21,6 +21,7 @@ import { pathCommand } from './commands/path';
 import { rulesCommand } from './commands/rules';
 import { managerCommand } from './commands/manager';
 import { checklistCommand } from './commands/checklist';
+import { checkContractCommand } from './commands/checkContract';
 
 interface ParseResult {
   command: string;
@@ -38,7 +39,7 @@ const KNOWN_COMMANDS = [
   'init', 'create', 'list', 'done', 'validate', 'templates', 'help',
   'start', 'review', 'rework', 'block', 'unblock', 'supersede', 'queue', 'audit',
   'ready', 'show', 'path', 'rules', 'manager',
-  'checklist',
+  'checklist', 'check',
 ];
 
 function parseArgs(argv: string[]): ParseResult {
@@ -139,6 +140,8 @@ Task Management Commands:
   rules                   Print manager contact and display guidance
   manager <subcommand>    Configure and interact with task manager
   checklist <subcommand>  Show/update/check task checklist
+  check contract [id]     Validate task contract (Status, Objective, Scope, Checklist)
+                          --state <dir>  Filter by state folder
   help                    Show this help message
 
 Create options:
@@ -289,6 +292,15 @@ async function runCli(): Promise<void> {
 
       case 'checklist':
         checklistCommand(args);
+        break;
+
+      case 'check':
+        if (args[0] === 'contract') {
+          checkContractCommand(args[1], flags);
+        } else {
+          console.error('Usage: aitask check contract [<id>] [--state <state>]');
+          process.exit(1);
+        }
         break;
 
       default:

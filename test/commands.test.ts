@@ -9,6 +9,7 @@ import {
   findReportPair,
 } from '../src/tasks';
 import { runAudit, countAllTasks } from '../src/commands/audit';
+import { checkContractCommand, runContractCheck, CheckResult } from '../src/commands/checkContract';
 import { TaskDir } from '../src/types';
 
 const TEST_CWD = '/tmp/aitask-commands-test';
@@ -151,6 +152,95 @@ describe('queue', () => {
       fs.rmSync(TEST_CWD, { recursive: true });
     }
   });
+
+describe('check contract', () => {
+  beforeEach(() => {
+    cleanTestDir();
+    ensureDirs(TEST_CWD);
+  });
+
+  afterAll(() => {
+    if (fs.existsSync(TEST_CWD)) {
+      fs.rmSync(TEST_CWD, { recursive: true });
+    }
+  });
+
+  function writeContractTask(dir: TaskDir, id: string, extraBody?: string): string {
+    const content = `# ${id}\n\n## Status\nREADY\n\n## Objective\nTest\n\n## Scope\nTest\n\n## Checklist (Mandatory)\n\n- [x] Item 1\n- [ ] Item 2\n\n${extraBody || ''}`;
+    return writeTask(dir, id, '', content);
+  }
+
+  it('passes valid contract task', () => {
+    const fp = writeContractTask('ready', 'CC01');
+    const results: CheckResult[] = runContractCheck(undefined, undefined, TEST_CWD);
+    expect(results.length).toBeGreaterThan(0);
+    const taskResult = results.find((r: CheckResult) => r.file === fp);
+    expect(taskResult).toBeDefined();
+    expect(taskResult!.results.every((r: { pass: boolean }) => r.pass)).toBe(true);
+  });
+
+  it('fails missing Status section', () => {
+    const d = path.join(tasksDir(TEST_CWD), 'ready');
+    fs.mkdirSync(d, { recursive: true });
+    const fp = path.join(d, 'CC02.md');
+    fs.writeFileSync(fp, `# CC02\n\n## Objective\nTest\n\n## Scope\nTest\n\n## Checklist\n\n- [x] Item 1`, 'utf-8');
+    const results: CheckResult[] = runContractCheck(undefined, undefined, TEST_CWD);
+    const taskResult = results.find((r: CheckResult) => r.file === fp);
+    expect(taskResult).toBeDefined();
+    expect(taskResult!.results.find((r: { name: string }) => r.name === 'Status section')!.pass).toBe(false);
+  });
+
+  it('fails missing Checklist section', () => {
+    const d = path.join(tasksDir(TEST_CWD), 'ready');
+    fs.mkdirSync(d, { recursive: true });
+    const fp = path.join(d, 'CC03.md');
+    fs.writeFileSync(fp, `# CC03\n\n## Status\nREADY\n\n## Objective\nTest\n\n## Scope\nTest`, 'utf-8');
+    const results: CheckResult[] = runContractCheck(undefined, undefined, TEST_CWD);
+    const taskResult = results.find((r: CheckResult) => r.file === fp);
+    expect(taskResult).toBeDefined();
+    expect(taskResult!.results.find((r: { name: string }) => r.name === 'Checklist section')!.pass).toBe(false);
+  });
+
+  it('fails checklist with no checkbox items', () => {
+    const d = path.join(tasksDir(TEST_CWD), 'ready');
+    fs.mkdirSync(d, { recursive: true });
+    const fp = path.join(d, 'CC04.md');
+    fs.writeFileSync(fp, `# CC04\n\n## Status\nREADY\n\n## Objective\nTest\n\n## Scope\nTest\n\n## Checklist\n\n- plain text item`, 'utf-8');
+    const results: CheckResult[] = runContractCheck(undefined, undefined, TEST_CWD);
+    const taskResult = results.find((r: CheckResult) => r.file === fp);
+    expect(taskResult).toBeDefined();
+    expect(taskResult!.results.find((r: { name: string }) => r.name === 'Checklist items')!.pass).toBe(false);
+  });
+
+  it('fails done task with TODO marker', () => {
+    const d = path.join(tasksDir(TEST_CWD), 'done');
+    fs.mkdirSync(d, { recursive: true });
+    const fp = path.join(d, 'CC05.md');
+    fs.writeFileSync(fp, `# CC05\n\n## Status\nDONE\n\n## Objective\nTest\n\n## Scope\nTest\n\n## Checklist\n\n- [x] Item 1\nTODO: fix this`, 'utf-8');
+    const results: CheckResult[] = runContractCheck(undefined, undefined, TEST_CWD);
+    const taskResult = results.find((r: CheckResult) => r.file === fp);
+    expect(taskResult).toBeDefined();
+    expect(taskResult!.results.find((r: { name: string }) => r.name === 'No TODO in done')!.pass).toBe(false);
+  });
+
+  it('filters by task id', () => {
+    writeContractTask('ready', 'CC10');
+    writeContractTask('ready', 'CC11');
+    const results: CheckResult[] = runContractCheck('CC10', undefined, TEST_CWD);
+    expect(results).toHaveLength(1);
+    expect(results[0].file).toContain('CC10');
+  });
+
+  it('filters by state', () => {
+    writeContractTask('ready', 'CC20');
+    writeContractTask('done', 'CC21', '## Status\nDONE\n');
+    const results: CheckResult[] = runContractCheck(undefined, 'ready', TEST_CWD);
+    expect(results.length).toBeGreaterThanOrEqual(1);
+    for (const r of results) {
+      expect(r.file).toContain('/ready/');
+    }
+  });
+});
 
   it('scanDir returns correct counts per directory', () => {
     writeTask('backlog', 'Q01');

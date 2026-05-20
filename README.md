@@ -36,6 +36,8 @@ node dist/aitask.cjs <command>
 | `aitask rules`             | Print manager contact and display guidance           |
 | `aitask templates <sub>`   | List or materialize built-in templates               |
 | `aitask manager <sub>`     | Configure and interact with task manager             |
+| `aitask check contract`    | Validate task contract (Status, Objective, Scope, Checklist) |
+| `aitask check contract <id>` | Validate contract for a specific task              |
 | `aitask help`              | Show help                                            |
 
 ## Task Lifecycle State Machine
