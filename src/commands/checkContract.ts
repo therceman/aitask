@@ -59,7 +59,6 @@ export function runContractCheck(id?: string, state?: string, cwd?: string): Che
 
     results.push({ name: 'Status section', pass: md.includes('## Status') });
     results.push({ name: 'Objective section', pass: md.includes('## Objective') });
-    results.push({ name: 'Scope section', pass: md.includes('## Scope') });
     results.push({ name: 'Checklist section', pass: md.includes('## Checklist') });
 
     if (md.includes('## Checklist')) {
